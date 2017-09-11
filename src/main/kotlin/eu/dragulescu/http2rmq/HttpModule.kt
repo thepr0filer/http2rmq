@@ -27,12 +27,23 @@ object HttpModule {
 
                         when (request.method) {
                             Method.POST -> {
-                                RabbitMqModule.post(
-                                        directions.first,
-                                        directions.second,
-                                        request.getPostBody(request.contentLength).toStringContent(),
-                                        headers
-                                        )
+                                if (request.parameterNames.contains("expectsResponse") && request.parameters.getParameter("expectsResponse") == true.toString()) {
+                                    response.writer.write(
+                                            RabbitMqModule.get(
+                                                directions.first,
+                                                directions.second,
+                                                headers,
+                                                request.getPostBody(request.contentLength).toStringContent()
+                                            )
+                                    )
+                                } else {
+                                    RabbitMqModule.post(
+                                            directions.first,
+                                            directions.second,
+                                            request.getPostBody(request.contentLength).toStringContent(),
+                                            headers
+                                    )
+                                }
                                 response.setStatus(HttpStatus.OK_200)
                             }
                             Method.GET -> {
