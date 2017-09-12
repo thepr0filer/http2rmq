@@ -36,18 +36,19 @@ object RabbitMqModule {
 
     fun get(from:String, topic:String, headers:Map<String,Any>, message: String = "") : String {
         val channel = getOrCreateChannel(from, topic)
-        val ck = getChannelKey(from,topic)
         val corrId = UUID.randomUUID().toString()
+
+        val rq = channel.queueDeclare().queue
 
         val props = AMQP.BasicProperties.Builder()
                 .headers(headers)
                 .correlationId(corrId)
-                .replyTo(channelsRQ[getChannelKey(from,topic)])
+                .replyTo(rq)
                 .build()
         channel.basicPublish(from, topic, props, message.toByteArray())
 
         val response = ArrayBlockingQueue<String>(1)
-        channel.basicConsume(channelsRQ[ck], true, object : DefaultConsumer(channel) {
+        channel.basicConsume(rq, true, object : DefaultConsumer(channel) {
             @Throws(IOException::class)
             override fun handleDelivery(consumerTag: String, envelope: Envelope, properties: AMQP.BasicProperties, body: ByteArray) {
                 if (properties.correlationId == corrId) {
@@ -112,7 +113,6 @@ object RabbitMqModule {
     private fun getChannel(channelKey:String) = channels.getOrDefault(channelKey, null)
     private fun setChannel(channelKey:String, channel: Channel) : Channel {
         channels.putIfAbsent(channelKey, channel)
-        channelsRQ.putIfAbsent(channelKey, channel.queueDeclare().queue)
         return channel
     }
 }
